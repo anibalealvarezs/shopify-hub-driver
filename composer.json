@@ -13,9 +13,17 @@
         "anibalealvarezs/api-client-skeleton": "dev-main",
         "anibalealvarezs/shopify-api": "dev-main"
     },
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://satis.anibalalvarez.com/"
+        }
+    ],
     "autoload": {
         "psr-4": {
             "Anibalealvarezs\\ShopifyHubDriver\\": "src/"
         }
-    }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": false
 }
