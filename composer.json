@@ -1,0 +1,21 @@
+{
+    "name": "anibalealvarezs/shopify-hub-driver",
+    "description": "Shopify driver for the Hub ecosystem",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Aníbal Álvarez",
+            "email": "anibalealvarezs@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=8.1",
+        "anibalealvarezs/api-client-skeleton": "dev-main",
+        "anibalealvarezs/shopify-api": "dev-main"
+    },
+    "autoload": {
+        "psr-4": {
+            "Anibalealvarezs\\ShopifyHubDriver\\": "src/"
+        }
+    }
+}
