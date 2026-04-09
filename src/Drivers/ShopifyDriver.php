@@ -125,4 +125,16 @@ class ShopifyDriver implements SyncDriverInterface
             throw $e;
         }
     }
+
+    public function getApi(array $config = []): ShopifyApi
+    {
+        /** @var \Anibalealvarezs\ShopifyHubDriver\Auth\ShopifyAuthProvider $auth */
+        $auth = $this->authProvider;
+        
+        return new ShopifyApi(
+            apiKey: $auth->getAccessToken(),
+            shopName: $auth->getShopName(),
+            version: $auth->getVersion()
+        );
+    }
 }
