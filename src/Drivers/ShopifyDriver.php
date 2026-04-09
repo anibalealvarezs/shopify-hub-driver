@@ -5,6 +5,7 @@ namespace Anibalealvarezs\ShopifyHubDriver\Drivers;
 use Anibalealvarezs\ApiSkeleton\Interfaces\SyncDriverInterface;
 use Anibalealvarezs\ApiSkeleton\Interfaces\AuthProviderInterface;
 use Anibalealvarezs\ShopifyApi\ShopifyApi;
+use Anibalealvarezs\ShopifyApi\Conversions\ShopifyConvert;
 use Symfony\Component\HttpFoundation\Response;
 use Psr\Log\LoggerInterface;
 use DateTime;
@@ -26,6 +27,11 @@ class ShopifyDriver implements SyncDriverInterface
     public function setAuthProvider(AuthProviderInterface $provider): void
     {
         $this->authProvider = $provider;
+    }
+
+    public function getAuthProvider(): ?AuthProviderInterface
+    {
+        return $this->authProvider;
     }
 
     public function setDataProcessor(callable $processor): void
@@ -73,12 +79,11 @@ class ShopifyDriver implements SyncDriverInterface
                     processedAtMin: $config['processedAtMin'] ?? null,
                     processedAtMax: $config['processedAtMax'] ?? null,
                     fields: $config['fields'] ?? null,
-                    callback: function ($orders) use ($config) {
-                        ($this->dataProcessor)(
-                            data: $orders,
-                            type: 'orders',
-                            config: $config
-                        );
+                    callback: function ($orders) {
+                        $collection = ShopifyConvert::orders($orders);
+                        if ($this->dataProcessor && $collection->count() > 0) {
+                            ($this->dataProcessor)($collection, $this->logger);
+                        }
                     }
                 );
             }
@@ -87,12 +92,11 @@ class ShopifyDriver implements SyncDriverInterface
             if ($type === 'all' || $type === 'products') {
                 if ($this->logger) $this->logger->info("Syncing Shopify Products...");
                 $api->getAllProductsAndProcess(
-                    callback: function ($products) use ($config) {
-                        ($this->dataProcessor)(
-                            data: $products,
-                            type: 'products',
-                            config: $config
-                        );
+                    callback: function ($products) {
+                        $collection = ShopifyConvert::products($products);
+                        if ($this->dataProcessor && $collection->count() > 0) {
+                            ($this->dataProcessor)($collection, $this->logger);
+                        }
                     }
                 );
             }
@@ -103,12 +107,11 @@ class ShopifyDriver implements SyncDriverInterface
                 $api->getAllCustomersAndProcess(
                     createdAtMin: $startDate->format('Y-m-d\TH:i:sP'),
                     createdAtMax: $endDate->format('Y-m-d\TH:i:sP'),
-                    callback: function ($customers) use ($config) {
-                        ($this->dataProcessor)(
-                            data: $customers,
-                            type: 'customers',
-                            config: $config
-                        );
+                    callback: function ($customers) {
+                        $collection = ShopifyConvert::customers($customers);
+                        if ($this->dataProcessor && $collection->count() > 0) {
+                            ($this->dataProcessor)($collection, $this->logger);
+                        }
                     }
                 );
             }
