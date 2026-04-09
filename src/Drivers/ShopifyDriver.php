@@ -4,6 +4,7 @@ namespace Anibalealvarezs\ShopifyHubDriver\Drivers;
 
 use Anibalealvarezs\ApiSkeleton\Interfaces\SyncDriverInterface;
 use Anibalealvarezs\ApiSkeleton\Interfaces\AuthProviderInterface;
+use Anibalealvarezs\ApiSkeleton\Traits\HasUpdatableCredentials;
 use Anibalealvarezs\ShopifyApi\ShopifyApi;
 use Anibalealvarezs\ShopifyApi\Conversions\ShopifyConvert;
 use Symfony\Component\HttpFoundation\Response;
@@ -13,6 +14,8 @@ use Exception;
 
 class ShopifyDriver implements SyncDriverInterface
 {
+    use HasUpdatableCredentials;
+
     private ?AuthProviderInterface $authProvider = null;
     private ?LoggerInterface $logger = null;
     /** @var callable|null */
