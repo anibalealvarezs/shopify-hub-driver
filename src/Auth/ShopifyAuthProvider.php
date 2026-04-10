@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Anibalealvarezs\ShopifyHubDriver\Auth;
 
-use Anibalealvarezs\ApiSkeleton\Auth\BaseAuthProvider;
+use Anibalealvarezs\ApiDriverCore\Auth\BaseAuthProvider;
 
 class ShopifyAuthProvider extends BaseAuthProvider
 {
