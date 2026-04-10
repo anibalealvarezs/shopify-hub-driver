@@ -3,8 +3,8 @@
 namespace Anibalealvarezs\ShopifyHubDriver\Drivers;
 
 use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
-use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
-use Anibalealvarezs\ApiDriverCore\Traits\HasUpdatableCredentials;
+use Anibalealvarezs\ApiSkeleton\Interfaces\AuthProviderInterface;
+use Anibalealvarezs\ApiSkeleton\Traits\HasUpdatableCredentials;
 use Anibalealvarezs\ShopifyApi\ShopifyApi;
 use Anibalealvarezs\ShopifyHubDriver\Conversions\ShopifyConvert;
 use Symfony\Component\HttpFoundation\Response;
