@@ -2,16 +2,16 @@
 
 namespace Anibalealvarezs\ShopifyHubDriver\Drivers;
 
-use Anibalealvarezs\ApiSkeleton\Interfaces\SyncDriverInterface;
-use Anibalealvarezs\ApiSkeleton\Interfaces\AuthProviderInterface;
-use Anibalealvarezs\ApiSkeleton\Traits\HasUpdatableCredentials;
+use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
+use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
+use Anibalealvarezs\ApiDriverCore\Traits\HasUpdatableCredentials;
 use Anibalealvarezs\ShopifyApi\ShopifyApi;
 use Anibalealvarezs\ShopifyApi\Conversions\ShopifyConvert;
 use Symfony\Component\HttpFoundation\Response;
 use Psr\Log\LoggerInterface;
 use DateTime;
 use Exception;
-use Anibalealvarezs\ApiSkeleton\Interfaces\SeederInterface;
+use Anibalealvarezs\ApiDriverCore\Interfaces\SeederInterface;
 
 class ShopifyDriver implements SyncDriverInterface
 {
@@ -176,6 +176,20 @@ class ShopifyDriver implements SyncDriverInterface
     }
     public function boot(): void
     {
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getAssetPatterns(): array
+    {
+        return [
+            'shopify_store' => [
+                'prefix' => 'sh:store',
+                'hostnames' => ['myshopify.com'],
+                'url_id_regex' => null
+            ]
+        ];
     }
 }
 
