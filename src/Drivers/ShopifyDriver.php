@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Psr\Log\LoggerInterface;
 use DateTime;
 use Exception;
+use Anibalealvarezs\ApiSkeleton\Interfaces\SeederInterface;
 
 class ShopifyDriver implements SyncDriverInterface
 {
@@ -164,5 +165,13 @@ class ShopifyDriver implements SyncDriverInterface
     public function validateConfig(array $config): array
     {
         return $config;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function seedDemoData(SeederInterface $seeder, array $config = []): void
+    {
+        // Placeholder for future implementation
     }
 }
