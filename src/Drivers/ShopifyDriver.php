@@ -6,7 +6,7 @@ use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
 use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
 use Anibalealvarezs\ApiDriverCore\Traits\HasUpdatableCredentials;
 use Anibalealvarezs\ShopifyApi\ShopifyApi;
-use Anibalealvarezs\ShopifyApi\Conversions\ShopifyConvert;
+use Anibalealvarezs\ShopifyHubDriver\Conversions\ShopifyConvert;
 use Symfony\Component\HttpFoundation\Response;
 use Psr\Log\LoggerInterface;
 use DateTime;
