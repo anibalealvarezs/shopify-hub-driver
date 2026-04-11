@@ -12,9 +12,11 @@ use Psr\Log\LoggerInterface;
 use DateTime;
 use Exception;
 use Anibalealvarezs\ApiDriverCore\Interfaces\SeederInterface;
+use Anibalealvarezs\ApiDriverCore\Traits\SyncDriverTrait;
 
 class ShopifyDriver implements SyncDriverInterface
 {
+    use SyncDriverTrait;
 
     /**
      * Store credentials for this driver.
