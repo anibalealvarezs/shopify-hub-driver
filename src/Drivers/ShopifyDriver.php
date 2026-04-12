@@ -17,6 +17,7 @@ use Anibalealvarezs\ApiDriverCore\Traits\SyncDriverTrait;
 class ShopifyDriver implements SyncDriverInterface
 {
     use SyncDriverTrait;
+    use SyncDriverTrait;
 
     /**
      * Store credentials for this driver.
@@ -188,6 +189,16 @@ class ShopifyDriver implements SyncDriverInterface
                 );
             }
 
+            // 4. Sync Price Rules
+            if ($type === 'all' || $type === 'price_rules') {
+                $this->syncPriceRules($api, $startDate, $endDate, $config);
+            }
+
+            // 5. Sync Product Categories
+            if ($type === 'all' || $type === 'product_categories') {
+                $this->syncProductCategories($api, $startDate, $endDate, $config);
+            }
+
             return new Response(json_encode(['status' => 'success', 'message' => "Shopify sync [{$type}] completed"]));
 
         } catch (Exception $e) {
@@ -195,6 +206,90 @@ class ShopifyDriver implements SyncDriverInterface
                 $this->logger->error("ShopifyDriver error: " . $e->getMessage());
             }
             throw $e;
+        }
+    }
+
+    private function syncPriceRules(ShopifyApi $api, DateTime $startDate, DateTime $endDate, array $config): void
+    {
+        if ($this->logger) {
+            $this->logger->info("Syncing Shopify Price Rules...");
+        }
+
+        $sinceId = $config['sinceId'] ?? ($config['filters']->sinceId ?? null);
+        $resume = $config['resume'] ?? true;
+
+        $api->getAllPriceRulesAndProcess(
+            createdAtMin: $startDate->format('Y-m-d\TH:i:sP'),
+            createdAtMax: $endDate->format('Y-m-d\TH:i:sP'),
+            endsAtMin: $config['filters']->endsAtMin ?? null,
+            endsAtMax: $config['filters']->endsAtMax ?? null,
+            sinceId: $sinceId,
+            startsAtMin: $config['filters']->startsAtMin ?? null,
+            startsAtMax: $config['filters']->startsAtMax ?? null,
+            timesUsed: $config['filters']->timesUsed ?? null,
+            updatedAtMin: $config['filters']->updatedAtMin ?? null,
+            updatedAtMax: $config['filters']->updatedAtMax ?? null,
+            pageInfo: $config['filters']->pageInfo ?? null,
+            callback: function ($priceRules) use ($api, $config) {
+                foreach ($priceRules as &$priceRule) {
+                    $discountCodesList = [];
+                    $api->getAllDiscountCodesAndProcess(
+                        priceRuleId: $priceRule['id'],
+                        callback: function ($discountCodes) use (&$discountCodesList) {
+                            $discountCodesList = array_merge($discountCodesList, $discountCodes);
+                        }
+                    );
+                    $priceRule['_discounts'] = ShopifyConvert::discounts($discountCodesList);
+                }
+                $collection = ShopifyConvert::priceRules($priceRules);
+                if ($this->dataProcessor && $collection->count() > 0) {
+                    ($this->dataProcessor)($collection, $this->logger);
+                }
+            }
+        );
+    }
+
+    private function syncProductCategories(ShopifyApi $api, DateTime $startDate, DateTime $endDate, array $config): void
+    {
+        if ($this->logger) {
+            $this->logger->info("Syncing Shopify Product Categories...");
+        }
+
+        $sourceCustomCollections = $api->getAllCustomCollections(
+            fields: $config['fields'] ?? null,
+            ids: $config['filters']->ids ?? null,
+            publishedAtMin: $startDate->format('Y-m-d\TH:i:sP'),
+            publishedAtMax: $endDate->format('Y-m-d\TH:i:sP'),
+            sinceId: $config['sinceId'] ?? null,
+            updatedAtMin: $config['filters']->updatedAtMin ?? null,
+            updatedAtMax: $config['filters']->updatedAtMax ?? null,
+            pageInfo: $config['filters']->pageInfo ?? null,
+        );
+        $sourceSmartCollections = $api->getAllSmartCollections(
+            fields: $config['fields'] ?? null,
+            ids: $config['filters']->ids ?? null,
+            publishedAtMin: $startDate->format('Y-m-d\TH:i:sP'),
+            publishedAtMax: $endDate->format('Y-m-d\TH:i:sP'),
+            sinceId: $config['sinceId'] ?? null,
+            updatedAtMin: $config['filters']->updatedAtMin ?? null,
+            updatedAtMax: $config['filters']->updatedAtMax ?? null,
+            pageInfo: $config['filters']->pageInfo ?? null,
+        );
+        $sourceCollects = $api->getAllCollects(
+            pageInfo: $config['filters']->pageInfo ?? null,
+        );
+
+        $collection = new \Doctrine\Common\Collections\ArrayCollection(
+            [
+                ...ShopifyConvert::productCategories(productCategories: $sourceCustomCollections['custom_collections'])->toArray(),
+                ...ShopifyConvert::productCategories(productCategories: $sourceSmartCollections['smart_collections'], isSmartCollection: true)->toArray(),
+            ]
+        );
+        
+        $collects = ShopifyConvert::collects($sourceCollects['collects'])->toArray();
+
+        if ($this->dataProcessor && ($collection->count() > 0 || !empty($collects))) {
+            ($this->dataProcessor)($collection, $this->logger, $collects);
         }
     }
 
@@ -289,6 +384,17 @@ class ShopifyDriver implements SyncDriverInterface
     public function prepareUiConfig(array $channelConfig): array
     {
         return [];
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getDateFilterMapping(): array
+    {
+        return [
+            'start' => 'createdAtMin',
+            'end' => 'createdAtMax'
+        ];
     }
 }
 
