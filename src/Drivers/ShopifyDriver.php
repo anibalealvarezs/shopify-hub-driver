@@ -17,7 +17,6 @@ use Anibalealvarezs\ApiDriverCore\Traits\SyncDriverTrait;
 class ShopifyDriver implements SyncDriverInterface
 {
     use SyncDriverTrait;
-    use SyncDriverTrait;
 
     /**
      * Store credentials for this driver.
@@ -312,7 +311,7 @@ class ShopifyDriver implements SyncDriverInterface
     {
         return [
             'global' => [
-                'enabled' => true,
+                'enabled' => false,
                 'cache_history_range' => '30 days',
                 'cache_aggregations' => false,
             ],
@@ -327,7 +326,11 @@ class ShopifyDriver implements SyncDriverInterface
      */
     public function validateConfig(array $config): array
     {
-        return $config;
+        return \Anibalealvarezs\ApiDriverCore\Services\ConfigSchemaRegistryService::hydrate(
+            $this->getChannel(),
+            'global',
+            $config
+        );
     }
 
     /**
