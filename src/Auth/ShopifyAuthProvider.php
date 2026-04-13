@@ -13,6 +13,11 @@ class ShopifyAuthProvider extends BaseAuthProvider
         return $this->data['shopify_auth']['access_token'] ?? "";
     }
 
+    public function getUserId(): string
+    {
+        return $this->data['shopify_auth']['shop_name'] ?? "";
+    }
+
     public function getShopName(): string
     {
         return $this->data['shopify_auth']['shop_name'] ?? "";
