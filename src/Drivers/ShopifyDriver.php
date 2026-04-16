@@ -151,7 +151,8 @@ class ShopifyDriver implements SyncDriverInterface
                     processedAtMin: $config['processedAtMin'] ?? null,
                     processedAtMax: $config['processedAtMax'] ?? null,
                     fields: $config['fields'] ?? null,
-                    callback: function ($orders) {
+                    callback: function ($orders) use ($config) {
+                        $this->checkJobStatus($config);
                         $collection = ShopifyConvert::orders($orders);
                         if ($this->dataProcessor && $collection->count() > 0) {
                             ($this->dataProcessor)($collection, $this->logger);
@@ -164,7 +165,8 @@ class ShopifyDriver implements SyncDriverInterface
             if ($type === 'all' || $type === 'products') {
                 if ($this->logger) $this->logger->info("Syncing Shopify Products...");
                 $api->getAllProductsAndProcess(
-                    callback: function ($products) {
+                    callback: function ($products) use ($config) {
+                        $this->checkJobStatus($config);
                         $collection = ShopifyConvert::products($products);
                         if ($this->dataProcessor && $collection->count() > 0) {
                             ($this->dataProcessor)($collection, $this->logger);
@@ -179,7 +181,8 @@ class ShopifyDriver implements SyncDriverInterface
                 $api->getAllCustomersAndProcess(
                     createdAtMin: $startDate->format('Y-m-d\TH:i:sP'),
                     createdAtMax: $endDate->format('Y-m-d\TH:i:sP'),
-                    callback: function ($customers) {
+                    callback: function ($customers) use ($config) {
+                        $this->checkJobStatus($config);
                         $collection = ShopifyConvert::customers($customers);
                         if ($this->dataProcessor && $collection->count() > 0) {
                             ($this->dataProcessor)($collection, $this->logger);
@@ -230,11 +233,13 @@ class ShopifyDriver implements SyncDriverInterface
             updatedAtMax: $config['filters']->updatedAtMax ?? null,
             pageInfo: $config['filters']->pageInfo ?? null,
             callback: function ($priceRules) use ($api, $config) {
+                $this->checkJobStatus($config);
                 foreach ($priceRules as &$priceRule) {
                     $discountCodesList = [];
                     $api->getAllDiscountCodesAndProcess(
                         priceRuleId: $priceRule['id'],
-                        callback: function ($discountCodes) use (&$discountCodesList) {
+                        callback: function ($discountCodes) use (&$discountCodesList, $config) {
+                            $this->checkJobStatus($config);
                             $discountCodesList = array_merge($discountCodesList, $discountCodes);
                         }
                     );
