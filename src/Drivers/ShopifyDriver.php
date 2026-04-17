@@ -116,7 +116,14 @@ class ShopifyDriver implements SyncDriverInterface
         return 'shopify';
     }
 
-    public function sync(DateTime $startDate, DateTime $endDate, array $config = []): Response
+    public function sync(
+        DateTime $startDate,
+        DateTime $endDate,
+        array $config = [],
+        ?callable $shouldContinue = null,
+        ?callable $identityMapper = null
+    ): Response
+
     {
         if (!$this->authProvider) {
             throw new Exception("AuthProvider not set for ShopifyDriver");
@@ -151,8 +158,10 @@ class ShopifyDriver implements SyncDriverInterface
                     processedAtMin: $config['processedAtMin'] ?? null,
                     processedAtMax: $config['processedAtMax'] ?? null,
                     fields: $config['fields'] ?? null,
-                    callback: function ($orders) use ($config) {
-                        $this->checkJobStatus($config);
+                    callback: function ($orders) use ($config, $shouldContinue) {
+                        if ($shouldContinue && !$shouldContinue()) {
+                            throw new Exception("Sync aborted by the orchestrator.");
+                        }
                         $collection = ShopifyConvert::orders($orders);
                         if ($this->dataProcessor && $collection->count() > 0) {
                             ($this->dataProcessor)($collection, $this->logger);
@@ -165,8 +174,10 @@ class ShopifyDriver implements SyncDriverInterface
             if ($type === 'all' || $type === 'products') {
                 if ($this->logger) $this->logger->info("Syncing Shopify Products...");
                 $api->getAllProductsAndProcess(
-                    callback: function ($products) use ($config) {
-                        $this->checkJobStatus($config);
+                    callback: function ($products) use ($config, $shouldContinue) {
+                        if ($shouldContinue && !$shouldContinue()) {
+                            throw new Exception("Sync aborted by the orchestrator.");
+                        }
                         $collection = ShopifyConvert::products($products);
                         if ($this->dataProcessor && $collection->count() > 0) {
                             ($this->dataProcessor)($collection, $this->logger);
@@ -181,8 +192,10 @@ class ShopifyDriver implements SyncDriverInterface
                 $api->getAllCustomersAndProcess(
                     createdAtMin: $startDate->format('Y-m-d\TH:i:sP'),
                     createdAtMax: $endDate->format('Y-m-d\TH:i:sP'),
-                    callback: function ($customers) use ($config) {
-                        $this->checkJobStatus($config);
+                    callback: function ($customers) use ($config, $shouldContinue) {
+                        if ($shouldContinue && !$shouldContinue()) {
+                            throw new Exception("Sync aborted by the orchestrator.");
+                        }
                         $collection = ShopifyConvert::customers($customers);
                         if ($this->dataProcessor && $collection->count() > 0) {
                             ($this->dataProcessor)($collection, $this->logger);
@@ -193,12 +206,12 @@ class ShopifyDriver implements SyncDriverInterface
 
             // 4. Sync Price Rules
             if ($type === 'all' || $type === 'price_rules') {
-                $this->syncPriceRules($api, $startDate, $endDate, $config);
+                $this->syncPriceRules($api, $startDate, $endDate, $config, $shouldContinue);
             }
 
             // 5. Sync Product Categories
             if ($type === 'all' || $type === 'product_categories') {
-                $this->syncProductCategories($api, $startDate, $endDate, $config);
+                $this->syncProductCategories($api, $startDate, $endDate, $config, $shouldContinue);
             }
 
             return new Response(json_encode(['status' => 'success', 'message' => "Shopify sync [{$type}] completed"]));
@@ -211,14 +224,13 @@ class ShopifyDriver implements SyncDriverInterface
         }
     }
 
-    private function syncPriceRules(ShopifyApi $api, DateTime $startDate, DateTime $endDate, array $config): void
+    private function syncPriceRules(ShopifyApi $api, DateTime $startDate, DateTime $endDate, array $config, ?callable $shouldContinue = null): void
     {
         if ($this->logger) {
             $this->logger->info("Syncing Shopify Price Rules...");
         }
 
         $sinceId = $config['sinceId'] ?? ($config['filters']->sinceId ?? null);
-        $resume = $config['resume'] ?? true;
 
         $api->getAllPriceRulesAndProcess(
             createdAtMin: $startDate->format('Y-m-d\TH:i:sP'),
@@ -232,14 +244,18 @@ class ShopifyDriver implements SyncDriverInterface
             updatedAtMin: $config['filters']->updatedAtMin ?? null,
             updatedAtMax: $config['filters']->updatedAtMax ?? null,
             pageInfo: $config['filters']->pageInfo ?? null,
-            callback: function ($priceRules) use ($api, $config) {
-                $this->checkJobStatus($config);
+            callback: function ($priceRules) use ($api, $config, $shouldContinue) {
+                if ($shouldContinue && !$shouldContinue()) {
+                    throw new Exception("Sync aborted by the orchestrator.");
+                }
                 foreach ($priceRules as &$priceRule) {
                     $discountCodesList = [];
                     $api->getAllDiscountCodesAndProcess(
                         priceRuleId: $priceRule['id'],
-                        callback: function ($discountCodes) use (&$discountCodesList, $config) {
-                            $this->checkJobStatus($config);
+                        callback: function ($discountCodes) use (&$discountCodesList, $config, $shouldContinue) {
+                            if ($shouldContinue && !$shouldContinue()) {
+                                throw new Exception("Sync aborted by the orchestrator.");
+                            }
                             $discountCodesList = array_merge($discountCodesList, $discountCodes);
                         }
                     );
@@ -253,8 +269,11 @@ class ShopifyDriver implements SyncDriverInterface
         );
     }
 
-    private function syncProductCategories(ShopifyApi $api, DateTime $startDate, DateTime $endDate, array $config): void
+    private function syncProductCategories(ShopifyApi $api, DateTime $startDate, DateTime $endDate, array $config, ?callable $shouldContinue = null): void
     {
+        if ($shouldContinue && !$shouldContinue()) {
+            throw new Exception("Sync aborted by the orchestrator.");
+        }
         if ($this->logger) {
             $this->logger->info("Syncing Shopify Product Categories...");
         }
@@ -367,7 +386,7 @@ class ShopifyDriver implements SyncDriverInterface
     /**
      * @inheritdoc
      */
-    public function initializeEntities(mixed $entityManager, array $config = []): array
+    public function initializeEntities(array $config = []): array
     {
         return ['initialized' => 0, 'skipped' => 0];
     }
@@ -375,14 +394,9 @@ class ShopifyDriver implements SyncDriverInterface
     /**
      * @inheritdoc
      */
-    public function reset(mixed $entityManager, string $mode = 'all', array $config = []): array
+    public function reset(string $mode = 'all', array $config = []): array
     {
-        if (!$entityManager instanceof \Doctrine\ORM\EntityManagerInterface) {
-            throw new \Exception("EntityManagerInterface required for ShopifyDriver reset.");
-        }
-
-        $resetter = new \Anibalealvarezs\ShopifyHubDriver\Services\ShopifyResetService($entityManager);
-        return $resetter->reset($this->getChannel(), $mode);
+        return ['cleared' => 0, 'mode' => $mode];
     }
 
     public function updateConfiguration(array $newData, array $currentConfig): array
