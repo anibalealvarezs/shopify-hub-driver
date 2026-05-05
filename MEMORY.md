@@ -10,3 +10,4 @@
 - Keep secrets, credentials, tokens, and private endpoints out of this file.
 ## Current notes
 - Shopify driver must normalize commerce data before orchestration.
+- Shopify driver now implements `CanonicalMetricDictionaryProviderInterface` to expose read-only canonical metric equivalences at aggregation time (`conversions`, `conversion_rate`, `roas_purchase`) without mutating synced raw metric names.

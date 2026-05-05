@@ -6,6 +6,7 @@ use Anibalealvarezs\ApiDriverCore\Classes\MetricProfileTemplates;
 use Anibalealvarezs\ApiDriverCore\Classes\AggregationProfileTemplates;
 use Anibalealvarezs\ApiDriverCore\Interfaces\MetricProfileProviderInterface;
 use Anibalealvarezs\ApiDriverCore\Interfaces\AggregationProfileProviderInterface;
+use Anibalealvarezs\ApiDriverCore\Interfaces\CanonicalMetricDictionaryProviderInterface;
 use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
 use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
 use Anibalealvarezs\ApiDriverCore\Traits\HasUpdatableCredentials;
@@ -18,7 +19,7 @@ use Exception;
 use Anibalealvarezs\ApiDriverCore\Interfaces\SeederInterface;
 use Anibalealvarezs\ApiDriverCore\Traits\SyncDriverTrait;
 
-class ShopifyDriver implements SyncDriverInterface, MetricProfileProviderInterface, AggregationProfileProviderInterface
+class ShopifyDriver implements SyncDriverInterface, MetricProfileProviderInterface, AggregationProfileProviderInterface, CanonicalMetricDictionaryProviderInterface
 {
     use SyncDriverTrait;
 
@@ -73,6 +74,20 @@ class ShopifyDriver implements SyncDriverInterface, MetricProfileProviderInterfa
                 label: 'Shopify Store Performance'
             ),
         ];
+    }
+
+    public static function getCanonicalMetricDictionary(): array
+    {
+        return [
+            'conversions' => ['orders', 'orders_daily'],
+            'conversion_rate' => ['conversion_rate', 'store_conversion_rate'],
+            'roas_purchase' => ['roas', 'purchase_roas'],
+        ];
+    }
+
+    public static function getPlatformEntityIdField(): string
+    {
+        return 'shop_domain';
     }
 
     /**
