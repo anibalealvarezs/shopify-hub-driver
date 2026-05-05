@@ -2,6 +2,10 @@
 
 namespace Anibalealvarezs\ShopifyHubDriver\Drivers;
 
+use Anibalealvarezs\ApiDriverCore\Classes\MetricProfileTemplates;
+use Anibalealvarezs\ApiDriverCore\Classes\AggregationProfileTemplates;
+use Anibalealvarezs\ApiDriverCore\Interfaces\MetricProfileProviderInterface;
+use Anibalealvarezs\ApiDriverCore\Interfaces\AggregationProfileProviderInterface;
 use Anibalealvarezs\ApiDriverCore\Interfaces\SyncDriverInterface;
 use Anibalealvarezs\ApiDriverCore\Interfaces\AuthProviderInterface;
 use Anibalealvarezs\ApiDriverCore\Traits\HasUpdatableCredentials;
@@ -14,7 +18,7 @@ use Exception;
 use Anibalealvarezs\ApiDriverCore\Interfaces\SeederInterface;
 use Anibalealvarezs\ApiDriverCore\Traits\SyncDriverTrait;
 
-class ShopifyDriver implements SyncDriverInterface
+class ShopifyDriver implements SyncDriverInterface, MetricProfileProviderInterface, AggregationProfileProviderInterface
 {
     use SyncDriverTrait;
 
@@ -47,6 +51,28 @@ class ShopifyDriver implements SyncDriverInterface
     public static function getChannelLabel(): string
     {
         return 'Shopify';
+    }
+
+    public static function getMetricProfiles(): array
+    {
+        return [
+            MetricProfileTemplates::pageTotals(
+                channel: 'shopify',
+                key: 'shopify_store_totals',
+                label: 'Shopify Store Totals'
+            ),
+        ];
+    }
+
+    public static function getAggregationProfiles(): array
+    {
+        return [
+            AggregationProfileTemplates::storeProfile(
+                channel: 'shopify',
+                key: 'shopify_store_performance',
+                label: 'Shopify Store Performance'
+            ),
+        ];
     }
 
     /**
