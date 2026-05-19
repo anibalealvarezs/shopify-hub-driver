@@ -42,4 +42,9 @@ class ShopifyAuthProvider extends BaseAuthProvider
         }
         $this->save();
     }
+
+    public function hasCredentials(): bool
+    {
+        return !empty($this->getAccessToken());
+    }
 }
