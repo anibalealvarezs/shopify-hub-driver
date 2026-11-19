@@ -699,6 +699,7 @@
             if (!empty($config['account_id'])) {
                 $credentials = $this->resolveAccountCredentials($config);
                 if (!$credentials || empty($credentials['access_token']) || empty($credentials['shop_name'])) throw new \RuntimeException('Credentials for the selected Shopify account are unavailable.');
+                $credentials = $this->refreshExpiredCredentialsIfNeeded($credentials, (string)$config['account_id']);
                 $domain = strtolower(trim((string)$credentials['shop_name']));
                 if (!preg_match('/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/D', $domain)) throw new \RuntimeException('Invalid Shopify account domain.');
                 $defaultVersion = $this->authProvider instanceof \Anibalealvarezs\ShopifyHubDriver\Auth\ShopifyAuthProvider ? $this->authProvider->getVersion() : '2026-10';
@@ -719,6 +720,66 @@
                 shopName: $auth->getShopName(),
                 version: $auth->getVersion()
             );
+        }
+
+        /**
+         * Refresh an expiring offline Shopify OAuth access token via the Facade Token Authority when expired or expiring within 5 minutes.
+         */
+        private function refreshExpiredCredentialsIfNeeded(array $credentials, string $accountId): array
+        {
+            $expiresAt = $credentials['expires_at'] ?? null;
+            if (!is_string($expiresAt) || trim($expiresAt) === '') {
+                return $credentials;
+            }
+            $expiresTs = strtotime($expiresAt);
+            if ($expiresTs === false || $expiresTs > (time() + 300)) {
+                return $credentials;
+            }
+
+            $enabled = $_ENV['TOKEN_AUTHORITY_ENABLED'] ?? getenv('TOKEN_AUTHORITY_ENABLED');
+            $url = (string)($_ENV['TOKEN_AUTHORITY_URL'] ?? getenv('TOKEN_AUTHORITY_URL') ?: '');
+            $bearer = (string)($_ENV['TOKEN_AUTHORITY_BEARER'] ?? getenv('TOKEN_AUTHORITY_BEARER') ?: '');
+
+            if ($enabled === 'false' || $enabled === false || $url === '' || $bearer === '') {
+                return $credentials;
+            }
+
+            try {
+                $client = new \GuzzleHttp\Client(['timeout' => 15]);
+                $response = $client->post($url, [
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $bearer,
+                        'Accept'        => 'application/json',
+                    ],
+                    'json' => [
+                        'channel'    => 'shopify',
+                        'account_id' => (string)($credentials['account_id'] ?? $accountId),
+                        'shop_id'    => $credentials['shop_id'] ?? null,
+                    ],
+                ]);
+                $data = json_decode((string)$response->getBody(), true);
+                if (is_array($data) && !empty($data['access_token'])) {
+                    $credentials['access_token'] = (string)$data['access_token'];
+                    if (!empty($data['refresh_token'])) {
+                        $credentials['refresh_token'] = (string)$data['refresh_token'];
+                    }
+                    if (!empty($data['expires_at'])) {
+                        $credentials['expires_at'] = (string)$data['expires_at'];
+                    }
+                    if ($this->authProvider instanceof \Anibalealvarezs\ApiDriverCore\Interfaces\MultiAccountAuthProviderInterface) {
+                        try {
+                            $storeKey = (string)($credentials['account_id'] ?? $accountId);
+                            $this->authProvider->storeAccountCredentials($storeKey, $credentials);
+                        } catch (\Throwable) {
+                            // Non-fatal if token file is read-only or encryption key is absent in worker
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                $this->logger?->warning('ShopifyDriver: Token Authority refresh failed: ' . $e->getMessage());
+            }
+
+            return $credentials;
         }
 
         /**
