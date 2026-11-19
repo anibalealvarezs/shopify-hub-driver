@@ -574,10 +574,9 @@
             ($this->dataProcessor)(ShopifyConvert::shopAccount($shop), 'account');
             ($this->dataProcessor)(ShopifyConvert::shopStore($shop), 'store');
             $shopId = (string)$shop['id'];
-            $this->rootConnection($api,
-                'query ShopifyOrders($cursor: String) { orders(first: 100, after: $cursor) { nodes { id legacyResourceId name createdAt updatedAt processedAt displayFinancialStatus displayFulfillmentStatus discountCodes refunds { id legacyResourceId createdAt totalRefundedSet { shopMoney { amount currencyCode } } } customer { id legacyResourceId email } subtotalPriceSet { shopMoney { amount currencyCode } } currentSubtotalPriceSet { shopMoney { amount currencyCode } } totalDiscountsSet { shopMoney { amount currencyCode } } currentTotalDiscountsSet { shopMoney { amount currencyCode } } currentTotalPriceSet { shopMoney { amount currencyCode } } customerJourneySummary { firstVisit { landingPage referrerUrl occurredAt utmParameters { source medium campaign content term } } lastVisit { landingPage referrerUrl occurredAt utmParameters { source medium campaign content term } } } } pageInfo { hasNextPage endCursor } } }',
-                'orders',
-                function (array $page) use ($api, $shopId, $shouldContinue): void {
+            $ordersQueryWithPii = 'query ShopifyOrders($cursor: String) { orders(first: 100, after: $cursor) { nodes { id legacyResourceId name createdAt updatedAt processedAt displayFinancialStatus displayFulfillmentStatus discountCodes refunds { id legacyResourceId createdAt totalRefundedSet { shopMoney { amount currencyCode } } } customer { id legacyResourceId email } subtotalPriceSet { shopMoney { amount currencyCode } } currentSubtotalPriceSet { shopMoney { amount currencyCode } } totalDiscountsSet { shopMoney { amount currencyCode } } currentTotalDiscountsSet { shopMoney { amount currencyCode } } currentTotalPriceSet { shopMoney { amount currencyCode } } customerJourneySummary { firstVisit { landingPage referrerUrl occurredAt utmParameters { source medium campaign content term } } lastVisit { landingPage referrerUrl occurredAt utmParameters { source medium campaign content term } } } } pageInfo { hasNextPage endCursor } } }';
+            $ordersQueryNoPii = str_replace('customer { id legacyResourceId email }', 'customer { id legacyResourceId }', $ordersQueryWithPii);
+            $orderPageCallback = function (array $page) use ($api, $shopId, $shouldContinue): void {
                     if (!isset($page['nodes']) || !is_array($page['nodes'])) throw new \UnexpectedValueException('Invalid Shopify order page.');
                     foreach ($page['nodes'] as $order) {
                         if ($shouldContinue && !$shouldContinue()) throw new \RuntimeException('Shopify sync cancelled.');
@@ -609,8 +608,17 @@
                         ($this->dataProcessor)(ShopifyConvert::graphqlOrders([$order], $shopId), 'order');
                         ($this->dataProcessor)($events, 'event');
                     }
-                }, $config, $shouldContinue,
-            );
+                };
+            try {
+                $this->rootConnection($api, $ordersQueryWithPii, 'orders', $orderPageCallback, $config, $shouldContinue);
+            } catch (\Throwable $e) {
+                $msg = $e->getMessage();
+                if (!str_contains($msg, 'ACCESS_DENIED') && !str_contains($msg, 'not approved to access the Customer object')) {
+                    throw $e;
+                }
+                $this->logger?->warning('ShopifyDriver: Order customer.email restricted by store plan/app approval; retrying orders sync without customer email.');
+                $this->rootConnection($api, $ordersQueryNoPii, 'orders', $orderPageCallback, $config, $shouldContinue);
+            }
             if ($shouldContinue && !$shouldContinue()) throw new \RuntimeException('Shopify sync cancelled.');
             return new Response(json_encode(['status' => 'success', 'message' => 'Shopify accessible orders sync completed'], JSON_THROW_ON_ERROR));
         }
