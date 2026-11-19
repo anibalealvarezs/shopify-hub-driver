@@ -477,18 +477,34 @@
             ($this->dataProcessor)(ShopifyConvert::shopAccount($shop), 'account');
             ($this->dataProcessor)(ShopifyConvert::shopStore($shop), 'store');
             $shopId = (string) $shop['id'];
-            $this->rootConnection($api,
-                'query ShopifyCustomers($cursor: String) { customers(first: 100, after: $cursor) { nodes { id legacyResourceId createdAt email firstName lastName } pageInfo { hasNextPage endCursor } } }',
-                'customers',
-                function (array $page) use ($shopId, $shouldContinue): void {
-                    if ($shouldContinue && !$shouldContinue()) throw new \RuntimeException('Shopify sync cancelled.');
-                    if (!isset($page['nodes']) || !is_array($page['nodes'])) throw new \UnexpectedValueException('Invalid Shopify customer page.');
-                    $collection = ShopifyConvert::graphqlCustomers($page['nodes'], $shopId);
-                    if ($collection->count() > 0) ($this->dataProcessor)($collection, 'customer');
-                },
-                $config,
-                $shouldContinue,
-            );
+            $customerCallback = function (array $page) use ($shopId, $shouldContinue): void {
+                if ($shouldContinue && !$shouldContinue()) throw new \RuntimeException('Shopify sync cancelled.');
+                if (!isset($page['nodes']) || !is_array($page['nodes'])) throw new \UnexpectedValueException('Invalid Shopify customer page.');
+                $collection = ShopifyConvert::graphqlCustomers($page['nodes'], $shopId);
+                if ($collection->count() > 0) ($this->dataProcessor)($collection, 'customer');
+            };
+            try {
+                $this->rootConnection($api,
+                    'query ShopifyCustomers($cursor: String) { customers(first: 100, after: $cursor) { nodes { id legacyResourceId createdAt email firstName lastName } pageInfo { hasNextPage endCursor } } }',
+                    'customers',
+                    $customerCallback,
+                    $config,
+                    $shouldContinue,
+                );
+            } catch (\Throwable $e) {
+                $msg = $e->getMessage();
+                if (!str_contains($msg, 'ACCESS_DENIED') && !str_contains($msg, 'not approved to access the Customer object')) {
+                    throw $e;
+                }
+                $this->logger?->warning('ShopifyDriver: Customer PII fields restricted by store plan/app approval; retrying customers sync without PII.');
+                $this->rootConnection($api,
+                    'query ShopifyCustomersNoPii($cursor: String) { customers(first: 100, after: $cursor) { nodes { id legacyResourceId createdAt } pageInfo { hasNextPage endCursor } } }',
+                    'customers',
+                    $customerCallback,
+                    $config,
+                    $shouldContinue,
+                );
+            }
             if ($shouldContinue && !$shouldContinue()) throw new \RuntimeException('Shopify sync cancelled.');
             return new Response(json_encode(['status' => 'success', 'message' => 'Shopify shop and customer sync completed'], JSON_THROW_ON_ERROR));
         }
