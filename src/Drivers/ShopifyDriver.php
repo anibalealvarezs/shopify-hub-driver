@@ -713,7 +713,20 @@
             ($this->dataProcessor)(ShopifyConvert::shopAccount($shop), 'account');
             ($this->dataProcessor)(ShopifyConvert::shopStore($shop), 'store');
             $query = 'FROM sales SHOW orders, gross_sales, net_sales, total_sales TIMESERIES day SINCE '.$startDay->format('Y-m-d').' UNTIL '.$endDay->format('Y-m-d').' ORDER BY day ASC LIMIT 1000';
-            $table = $api->shopifyqlQuery($query);
+            try {
+                $table = $api->shopifyqlQuery($query);
+            } catch (\Throwable $e) {
+                $msg = $e->getMessage();
+                if (!str_contains($msg, 'ACCESS_DENIED') && !str_contains($msg, 'Access denied for shopifyqlQuery')) {
+                    throw $e;
+                }
+                $this->logger?->warning('ShopifyDriver: shopifyqlQuery access denied by store plan/app permissions; skipping daily ShopifyQL metrics sync.');
+                return new Response(json_encode([
+                    'status'  => 'skipped',
+                    'reason'  => 'shopifyql_access_denied',
+                    'message' => 'ShopifyQL daily sales metrics skipped: store plan or app token lacks read_reports / Level 2 protected customer data access.',
+                ], JSON_THROW_ON_ERROR));
+            }
             if ($shouldContinue && !$shouldContinue()) throw new \RuntimeException('Shopify sync cancelled.');
             $metrics = ShopifyMetricConvert::dailySales($table, (string)$shop['id'], (string)$shop['currencyCode'], $startDay, $endDay);
             if ($metrics->count() > 0) ($this->dataProcessor)($metrics);
