@@ -146,6 +146,13 @@
                             'channel'          => ['='],
                             'metricDate'       => ['between', '>=', '<='],
                         ],
+                        'reducer_strategies' => [
+                            'orders'      => 'sum',
+                            'gross_sales' => 'sum',
+                            'net_sales'   => 'sum',
+                            'total_sales' => 'sum',
+                            '*'           => 'sum',
+                        ],
                     ]
                 ),
             ];
@@ -154,6 +161,10 @@
         public static function getCanonicalMetricDictionary(): array
         {
             return [
+                'orders'          => ['orders'],
+                'gross_sales'     => ['gross_sales'],
+                'net_sales'       => ['net_sales'],
+                'total_sales'     => ['total_sales'],
                 'conversions'     => ['orders', 'orders_daily'],
                 'conversion_rate' => ['conversion_rate', 'store_conversion_rate'],
                 'roas_purchase'   => ['roas', 'purchase_roas'],
