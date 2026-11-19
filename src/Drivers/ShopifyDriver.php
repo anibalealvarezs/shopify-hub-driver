@@ -317,14 +317,81 @@
             return 'shopify';
         }
 
+        /**
+         * Resolve credentials for the requested Shopify account from the auth provider or inline channel config,
+         * matching by account key, numeric shop_id, shop_gid, or myshopify_domain.
+         */
+        private function resolveAccountCredentials(array $config): ?array
+        {
+            $rawId = trim((string)($config['account_id'] ?? ''));
+            if ($rawId === '') {
+                return null;
+            }
+
+            $numericId = preg_match('#^(?:gid://shopify/Shop/|shopify_)?(\d+)$#i', $rawId, $m) ? $m[1] : null;
+            $candidates = array_values(array_unique(array_filter([
+                $rawId,
+                $numericId !== null ? 'shopify_' . $numericId : null,
+                $numericId,
+                $numericId !== null ? 'gid://shopify/Shop/' . $numericId : null,
+            ])));
+
+            if ($this->authProvider instanceof \Anibalealvarezs\ApiDriverCore\Interfaces\MultiAccountAuthProviderInterface) {
+                foreach ($candidates as $candidate) {
+                    $creds = $this->authProvider->getCredentialsForAccount($candidate);
+                    if (is_array($creds) && !empty($creds['access_token']) && !empty($creds['shop_name'])) {
+                        return $creds;
+                    }
+                }
+            }
+
+            $configAccounts = $config['accounts'] ?? [];
+            if (is_array($configAccounts)) {
+                foreach ($candidates as $candidate) {
+                    if (isset($configAccounts[$candidate]) && is_array($configAccounts[$candidate])) {
+                        $creds = $configAccounts[$candidate];
+                        if (!empty($creds['access_token']) && !empty($creds['shop_name'])) {
+                            return $creds;
+                        }
+                    }
+                }
+                foreach ($configAccounts as $creds) {
+                    if (!is_array($creds) || empty($creds['access_token']) || empty($creds['shop_name'])) {
+                        continue;
+                    }
+                    $credsShopId = (string)($creds['shop_id'] ?? '');
+                    $credsShopGid = (string)($creds['shop_gid'] ?? '');
+                    $credsDomain = strtolower(trim((string)($creds['myshopify_domain'] ?? $creds['shop_name'] ?? '')));
+                    if (
+                        in_array($credsShopId, $candidates, true)
+                        || in_array($credsShopGid, $candidates, true)
+                        || ($credsDomain !== '' && $credsDomain === strtolower($rawId))
+                    ) {
+                        return $creds;
+                    }
+                }
+            }
+
+            return null;
+        }
+
         private function verifySelectedShop(array $shop, array $config): void
         {
-            if (!($this->authProvider instanceof \Anibalealvarezs\ApiDriverCore\Interfaces\MultiAccountAuthProviderInterface) || empty($config['account_id'])) return;
+            if (empty($config['account_id'])) return;
+            $credentials = $this->resolveAccountCredentials($config);
+            if (!$credentials) {
+                if (!($this->authProvider instanceof \Anibalealvarezs\ApiDriverCore\Interfaces\MultiAccountAuthProviderInterface)) {
+                    return;
+                }
+                throw new \RuntimeException('Shopify returned a different shop than the selected account.');
+            }
             $id = (string)$config['account_id'];
-            $credentials = $this->authProvider->getCredentialsForAccount($id);
-            $expectedId = $credentials['shop_id'] ?? (str_starts_with($id, 'gid://shopify/Shop/') ? $id : null);
+            $expectedId = $credentials['shop_gid'] ?? $credentials['shop_id'] ?? (str_starts_with($id, 'gid://shopify/Shop/') ? $id : null);
+            $actualId = (string)($shop['id'] ?? '');
+            $expectedNumeric = $expectedId !== null && preg_match('#^gid://shopify/Shop/(\d+)$#i', (string)$expectedId, $em) ? $em[1] : (string)$expectedId;
+            $actualNumeric = preg_match('#^gid://shopify/Shop/(\d+)$#i', $actualId, $am) ? $am[1] : $actualId;
             $domain = strtolower((string)($shop['myshopifyDomain'] ?? ''));
-            if (!$credentials || $domain === '' || $domain !== strtolower(trim((string)($credentials['shop_name'] ?? ''))) || ($expectedId !== null && ($shop['id'] ?? null) !== $expectedId)) {
+            if ($domain === '' || $domain !== strtolower(trim((string)($credentials['shop_name'] ?? ''))) || ($expectedId !== null && $actualId !== (string)$expectedId && $actualNumeric !== $expectedNumeric)) {
                 throw new \RuntimeException('Shopify returned a different shop than the selected account.');
             }
         }
@@ -629,12 +696,13 @@
 
         public function getApi(array $config = []): ShopifyApi
         {
-            if ($this->authProvider instanceof \Anibalealvarezs\ApiDriverCore\Interfaces\MultiAccountAuthProviderInterface && !empty($config['account_id'])) {
-                $credentials = $this->authProvider->getCredentialsForAccount((string)$config['account_id']);
+            if (!empty($config['account_id'])) {
+                $credentials = $this->resolveAccountCredentials($config);
                 if (!$credentials || empty($credentials['access_token']) || empty($credentials['shop_name'])) throw new \RuntimeException('Credentials for the selected Shopify account are unavailable.');
                 $domain = strtolower(trim((string)$credentials['shop_name']));
                 if (!preg_match('/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/D', $domain)) throw new \RuntimeException('Invalid Shopify account domain.');
-                return new ShopifyApi(apiKey: $credentials['access_token'], shopName: substr($domain, 0, -strlen('.myshopify.com')), version: $credentials['version'] ?? $this->authProvider->getVersion());
+                $defaultVersion = $this->authProvider instanceof \Anibalealvarezs\ShopifyHubDriver\Auth\ShopifyAuthProvider ? $this->authProvider->getVersion() : '2026-10';
+                return new ShopifyApi(apiKey: $credentials['access_token'], shopName: substr($domain, 0, -strlen('.myshopify.com')), version: $credentials['version'] ?? $defaultVersion);
             }
             if ($this->authProvider instanceof \Anibalealvarezs\ApiDriverCore\Interfaces\MultiAccountAuthProviderInterface && $this->authProvider->getAccounts() !== []) {
                 throw new \RuntimeException('Select a Shopify account before syncing.');
