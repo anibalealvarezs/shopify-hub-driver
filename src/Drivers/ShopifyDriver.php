@@ -131,7 +131,22 @@
                 AggregationProfileTemplates::storeProfile(
                     channel: 'shopify',
                     key: 'shopify_store_performance',
-                    label: 'Shopify Store Performance'
+                    label: 'Shopify Store Performance',
+                    overrides: [
+                        'group_patterns' => [
+                            [],
+                            ['daily'],
+                            ['metricDate'],
+                            ['channeledAccount'],
+                            ['vendor'],
+                        ],
+                        'filter_contract' => [
+                            'channeledAccount' => ['=', 'in'],
+                            'vendor'           => ['=', 'in'],
+                            'channel'          => ['='],
+                            'metricDate'       => ['between', '>=', '<='],
+                        ],
+                    ]
                 ),
             ];
         }
