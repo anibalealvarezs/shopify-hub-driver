@@ -533,7 +533,7 @@
             ($this->dataProcessor)(ShopifyConvert::shopStore($shop), 'store');
             $shopId = (string) $shop['id'];
             $this->rootConnection($api,
-                'query ShopifyProducts($cursor: String) { products(first: 100, after: $cursor) { nodes { id legacyResourceId title handle vendor createdAt updatedAt } pageInfo { hasNextPage endCursor } } }',
+                'query ShopifyProducts($cursor: String) { products(first: 100, after: $cursor) { nodes { id legacyResourceId title handle vendor status productType options { name } featuredImage { url } priceRangeV2 { minVariantPrice { amount currencyCode } } createdAt updatedAt } pageInfo { hasNextPage endCursor } } }',
                 'products',
                 function (array $page) use ($api, $shopId, $shouldContinue): void {
                     if (!isset($page['nodes']) || !is_array($page['nodes'])) throw new \UnexpectedValueException('Invalid Shopify product page.');
