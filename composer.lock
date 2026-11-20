@@ -76,13 +76,13 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/anibalealvarezs/api-driver-core.git",
-                "reference": "15802b700bd957ef5c356a7ddd0b6eef05bcb65f"
+                "reference": "0a0d55f17eb56130a91a4933efac6cc4e38c55b2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/api-driver-core/anibalealvarezs-api-driver-core-15802b700bd957ef5c356a7ddd0b6eef05bcb65f-zip-1de44c.zip",
-                "reference": "15802b700bd957ef5c356a7ddd0b6eef05bcb65f",
-                "shasum": "6ea90bed11d42122b54e94e82a7efd467209283a"
+                "url": "https://satis.anibalalvarez.com/dist/anibalealvarezs/api-driver-core/anibalealvarezs-api-driver-core-0a0d55f17eb56130a91a4933efac6cc4e38c55b2-zip-15e62f.zip",
+                "reference": "0a0d55f17eb56130a91a4933efac6cc4e38c55b2",
+                "shasum": "75b099e0f8daa78c061c2cf829ccf9e81dd514b6"
             },
             "require": {
                 "anibalealvarezs/api-client-skeleton": "^1.0.0",
@@ -120,7 +120,7 @@
                 "source": "https://github.com/anibalealvarezs/api-driver-core/tree/v1.1.5",
                 "issues": "https://github.com/anibalealvarezs/api-driver-core/issues"
             },
-            "time": "2026-11-19T22:26:08+00:00"
+            "time": "2026-11-20T01:48:09+00:00"
         },
         {
             "name": "anibalealvarezs/oauth-v1",
@@ -1204,16 +1204,16 @@
         },
         {
             "name": "guzzlehttp/promises",
-            "version": "2.6.0",
+            "version": "2.6.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/promises.git",
-                "reference": "3d88c829bd5f13d13847b39067dbf09a60af2154"
+                "reference": "a1b6aceb39165acd5c421239e6abfa1b83dbe224"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/promises/zipball/3d88c829bd5f13d13847b39067dbf09a60af2154",
-                "reference": "3d88c829bd5f13d13847b39067dbf09a60af2154",
+                "url": "https://api.github.com/repos/guzzle/promises/zipball/a1b6aceb39165acd5c421239e6abfa1b83dbe224",
+                "reference": "a1b6aceb39165acd5c421239e6abfa1b83dbe224",
                 "shasum": ""
             },
             "require": {
@@ -1268,7 +1268,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/promises/issues",
-                "source": "https://github.com/guzzle/promises/tree/2.6.0"
+                "source": "https://github.com/guzzle/promises/tree/2.6.1"
             },
             "funding": [
                 {
@@ -1284,7 +1284,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-10-18T12:46:59+00:00"
+            "time": "2026-11-20T00:03:12+00:00"
         },
         {
             "name": "guzzlehttp/psr7",
