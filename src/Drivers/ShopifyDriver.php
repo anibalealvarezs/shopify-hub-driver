@@ -542,7 +542,7 @@
                         if (!is_array($product) || !is_string($product['id'] ?? null) || $product['id'] === '') throw new \UnexpectedValueException('Shopify product identity is missing.');
                         $variants = [];
                         $api->graphqlPaginate(
-                            'query ShopifyProductVariants($id: ID!, $cursor: String) { product(id: $id) { variants(first: 100, after: $cursor) { nodes { id legacyResourceId sku createdAt updatedAt } pageInfo { hasNextPage endCursor } } } }',
+                            'query ShopifyProductVariants($id: ID!, $cursor: String) { product(id: $id) { variants(first: 100, after: $cursor) { nodes { id legacyResourceId title sku price compareAtPrice inventoryQuantity createdAt updatedAt } pageInfo { hasNextPage endCursor } } } }',
                             'product.variants',
                             static function (array $variantPage) use (&$variants, $shouldContinue): void {
                                 if ($shouldContinue && !$shouldContinue()) throw new \RuntimeException('Shopify sync cancelled.');
