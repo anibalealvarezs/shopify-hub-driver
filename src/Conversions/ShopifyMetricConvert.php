@@ -11,6 +11,13 @@ use Doctrine\Common\Collections\ArrayCollection;
 final class ShopifyMetricConvert
 {
     private const METRICS = ['orders' => 'orders', 'gross_sales' => 'gross_sales', 'net_sales' => 'net_sales', 'total_sales' => 'total_sales'];
+    private const OPTIONAL_METRICS = [
+        'discounts' => 'discounts_total',
+        'returns' => 'returns_total',
+        'taxes' => 'taxes_total',
+        'shipping_charges' => 'shipping_total',
+    ];
+    private const MAGNITUDE_METRICS = ['discounts', 'returns'];
 
     public static function dailySales(array $table, string $shopId, string $currency, \DateTimeInterface $start, \DateTimeInterface $end): ArrayCollection
     {
@@ -21,6 +28,7 @@ final class ShopifyMetricConvert
         if (!isset($table['rows']) || !is_array($table['rows'])) throw new \UnexpectedValueException('ShopifyQL rows are missing.');
         $rows = [];
         $seen = [];
+        $activeMetrics = self::METRICS;
         foreach ($table['rows'] as $row) {
             if (!is_array($row)) throw new \UnexpectedValueException('Invalid ShopifyQL row.');
             $day = $row['day'] ?? null;
@@ -34,12 +42,23 @@ final class ShopifyMetricConvert
                     throw new \UnexpectedValueException('Invalid ShopifyQL sales value.');
                 }
             }
+            foreach (self::OPTIONAL_METRICS as $key => $canonical) {
+                if (array_key_exists($key, $row)) {
+                    if ($row[$key] !== null && (!is_numeric($row[$key]) || !is_finite((float)$row[$key]))) {
+                        throw new \UnexpectedValueException('Invalid ShopifyQL sales value.');
+                    }
+                    if ($row[$key] !== null && in_array($key, self::MAGNITUDE_METRICS, true)) {
+                        $row[$key] = abs((float)$row[$key]);
+                    }
+                    $activeMetrics[$key] = $canonical;
+                }
+            }
             $row['shop_id'] = $shopId;
             $rows[] = $row;
         }
         $metrics = UniversalMetricConverter::convert($rows, [
             'channel' => 'shopify', 'period' => 'daily', 'date_field' => 'day',
-            'platform_id_field' => 'shop_id', 'metrics' => self::METRICS,
+            'platform_id_field' => 'shop_id', 'metrics' => $activeMetrics,
             'row_key_fields' => ['shop_id' => ['channeledAccount']],
             'context' => UniversalMetricConverter::getUniversalContext(['currency' => $currency, 'sourceCurrency' => $currency]),
         ]);

@@ -145,13 +145,18 @@
                             'vendor'           => ['=', 'in'],
                             'channel'          => ['='],
                             'metricDate'       => ['between', '>=', '<='],
+                            'currency_mode'    => ['='],
                         ],
                         'reducer_strategies' => [
-                            'orders'      => 'sum',
-                            'gross_sales' => 'sum',
-                            'net_sales'   => 'sum',
-                            'total_sales' => 'sum',
-                            '*'           => 'sum',
+                            'orders'          => 'sum',
+                            'gross_sales'     => 'sum',
+                            'discounts_total' => 'sum',
+                            'returns_total'   => 'sum',
+                            'net_sales'       => 'sum',
+                            'taxes_total'     => 'sum',
+                            'shipping_total'  => 'sum',
+                            'total_sales'     => 'sum',
+                            '*'               => 'sum',
                         ],
                     ]
                 ),
@@ -163,7 +168,11 @@
             return [
                 'orders'          => ['orders'],
                 'gross_sales'     => ['gross_sales'],
+                'discounts_total' => ['discounts_total'],
+                'returns_total'   => ['returns_total'],
                 'net_sales'       => ['net_sales'],
+                'taxes_total'     => ['taxes_total'],
+                'shipping_total'  => ['shipping_total'],
                 'total_sales'     => ['total_sales'],
                 'conversions'     => ['orders', 'orders_daily'],
                 'conversion_rate' => ['conversion_rate', 'store_conversion_rate'],
@@ -712,7 +721,7 @@
             $this->verifySelectedShop($shop, $config);
             ($this->dataProcessor)(ShopifyConvert::shopAccount($shop), 'account');
             ($this->dataProcessor)(ShopifyConvert::shopStore($shop), 'store');
-            $query = 'FROM sales SHOW orders, gross_sales, net_sales, total_sales TIMESERIES day SINCE '.$startDay->format('Y-m-d').' UNTIL '.$endDay->format('Y-m-d').' ORDER BY day ASC LIMIT 1000';
+            $query = 'FROM sales SHOW orders, gross_sales, discounts, returns, net_sales, taxes, shipping_charges, total_sales TIMESERIES day SINCE '.$startDay->format('Y-m-d').' UNTIL '.$endDay->format('Y-m-d').' ORDER BY day ASC LIMIT 1000';
             try {
                 $table = $api->shopifyqlQuery($query);
             } catch (\Throwable $e) {
